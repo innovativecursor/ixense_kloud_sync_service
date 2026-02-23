@@ -21,6 +21,10 @@ type Config struct {
 	JWT struct {
 		Secret string `yaml:"secret"`
 	} `yaml:"jwt"`
+	ERP struct {
+		BaseURL string `yaml:"baseUrl"`
+		APIKey  string `yaml:"apiKey"`
+	} `yaml:"erp"`
 }
 
 func Env() (Config, error) {
