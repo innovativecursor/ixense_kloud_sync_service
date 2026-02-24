@@ -59,7 +59,7 @@ func SyncERPProducts(db *gorm.DB) error {
 
 			var existing models.ERPSyncMedicine
 
-			err := db.Where("erp_product_id = ?", product.ID).
+			err := db.Where("item_code = ?", product.ItemCode).
 				First(&existing).Error
 
 			if err == gorm.ErrRecordNotFound {
@@ -100,6 +100,7 @@ func SyncERPProducts(db *gorm.DB) error {
 			} else if err == nil {
 
 				db.Model(&existing).Updates(models.ERPSyncMedicine{
+					ERPProductID:         product.ID,
 					Stock:                product.Stock,
 					SellingPricePerPiece: product.SellingPricePerPiece,
 					CostPricePerBox:      product.CostPricePerBox,
@@ -139,5 +140,27 @@ func SyncERPHandler(c *gin.Context, db *gorm.DB) {
 		"message":     "ERP sync completed successfully",
 		"synced_at":   time.Now(),
 		"duration_ms": time.Since(start).Milliseconds(),
+	})
+}
+
+func GetAllItemCodesHandler(c *gin.Context, db *gorm.DB) {
+
+	var itemCodes []string
+
+	err := db.Model(&models.ERPSyncMedicine{}).
+		Pluck("item_code", &itemCodes).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  false,
+			"message": "Failed to fetch item codes",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":     true,
+		"total":      len(itemCodes),
+		"item_codes": itemCodes,
 	})
 }
