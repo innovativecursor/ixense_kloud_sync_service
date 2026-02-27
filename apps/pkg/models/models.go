@@ -31,4 +31,8 @@ type ERPSyncMedicine struct {
 	MaxThreshold         int
 	Image                string
 	Prescription         bool
+
+	KloudpxItemCode *string `gorm:"size:100;index"`
+	SyncID          *string `gorm:"size:100;uniqueIndex"`
+	IsMapped        bool    `gorm:"default:false"`
 }
