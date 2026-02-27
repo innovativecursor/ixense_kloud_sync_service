@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/innovativecursor/ixense_kloud_sync_service/apps/pkg/maperpandkp"
+	"github.com/innovativecursor/ixense_kloud_sync_service/apps/pkg/middleware"
 	"github.com/innovativecursor/ixense_kloud_sync_service/apps/pkg/syncbyerp"
 	"github.com/innovativecursor/ixense_kloud_sync_service/apps/routes/getapiroutes"
 	"gorm.io/gorm"
@@ -29,8 +31,16 @@ func SyncERP(db *gorm.DB) {
 		syncbyerp.SyncERPHandler(c, db)
 	})
 
-	apiV1.GET("sync/get-all-itemcodes", func(c *gin.Context) {
+	apiV1.GET("sync/get-all-itemcodes", middleware.InternalAuthMiddleware(), func(c *gin.Context) {
 		syncbyerp.GetAllItemCodesHandler(c, db)
+	})
+
+	// apiV1.GET("sync/get-all-mapped-item", middleware.InternalAuthMiddleware(), func(c *gin.Context) {
+	// 	maperpandkp.GetAllERPItemMappingsHandler(c, db)
+	// })
+
+	apiV1.PUT("sync/map-erp-kp-products", middleware.InternalAuthMiddleware(), func(c *gin.Context) {
+		maperpandkp.UpdateERPMappingHandler(c, db)
 	})
 	// Listen and serve on defined port
 	log.Printf("Application started, Listening on Port %s", port)

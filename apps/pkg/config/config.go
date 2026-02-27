@@ -25,6 +25,14 @@ type Config struct {
 		BaseURL string `yaml:"baseUrl"`
 		APIKey  string `yaml:"apiKey"`
 	} `yaml:"erp"`
+	KloudPX struct {
+		BaseURL    string `yaml:"baseUrl"`
+		ServiceKey string `yaml:"serviceKey"`
+	} `yaml:"kloudpx"`
+
+	Internal struct {
+		ServiceKey string `yaml:"serviceKey"`
+	} `yaml:"internal"`
 }
 
 func Env() (Config, error) {
