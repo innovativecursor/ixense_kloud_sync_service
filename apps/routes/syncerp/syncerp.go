@@ -31,6 +31,10 @@ func SyncERP(db *gorm.DB) {
 		syncbyerp.SyncERPHandler(c, db)
 	})
 
+	apiV1.GET("sync/get-all-data", func(c *gin.Context) {
+		syncbyerp.GetAllERPSyncMedicinesHandler(c, db)
+	})
+
 	apiV1.GET("sync/get-all-itemcodes", middleware.InternalAuthMiddleware(), func(c *gin.Context) {
 		syncbyerp.GetAllItemCodesHandler(c, db)
 	})
@@ -41,6 +45,17 @@ func SyncERP(db *gorm.DB) {
 
 	apiV1.PUT("sync/map-erp-kp-products", middleware.InternalAuthMiddleware(), func(c *gin.Context) {
 		maperpandkp.UpdateERPMappingHandler(c, db)
+	})
+
+	apiV1.POST("sync/recovery", middleware.InternalAuthMiddleware(), func(c *gin.Context) {
+		maperpandkp.RecoverySyncHandler(c, db)
+	})
+
+	apiV1.POST("erp/webhook/product", middleware.InternalAuthMiddleware(), func(c *gin.Context) {
+		syncbyerp.ERPProductWebhookHandler(c, db)
+	})
+	apiV1.POST("erp/webhook/stock", middleware.InternalAuthMiddleware(), func(c *gin.Context) {
+		syncbyerp.ERPStockWebhookHandler(c, db)
 	})
 	// Listen and serve on defined port
 	log.Printf("Application started, Listening on Port %s", port)

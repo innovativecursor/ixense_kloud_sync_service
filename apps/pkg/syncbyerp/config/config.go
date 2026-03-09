@@ -40,3 +40,12 @@ type ERPProduct struct {
 	MaxThreshold         int     `json:"maxThreshold"`
 	Image                string  `json:"image"`
 }
+
+type ERPProductWebhookRequest struct {
+	Product ERPProduct `json:"product" binding:"required"`
+}
+
+type ERPStockWebhookRequest struct {
+	ItemCode string `json:"itemCode" binding:"required"`
+	Stock    int    `json:"stock" binding:"required"`
+}

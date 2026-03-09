@@ -1,6 +1,10 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type ERPSyncMedicine struct {
 	gorm.Model
@@ -32,6 +36,8 @@ type ERPSyncMedicine struct {
 	Image                string
 	Prescription         bool
 
+	LastSyncedAt    *time.Time
+	SyncStatus      string  `gorm:"size:20;default:'pending'"`
 	KloudpxItemCode *string `gorm:"size:100;index"`
 	SyncID          *string `gorm:"size:100;uniqueIndex"`
 	IsMapped        bool    `gorm:"default:false"`

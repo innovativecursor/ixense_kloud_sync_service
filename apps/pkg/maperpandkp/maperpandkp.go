@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"math/rand"
 	"net/http"
 	"time"
@@ -153,7 +152,7 @@ func UpdateERPMappingHandler(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
-	if err := SyncToKloudPX(erpItem); err != nil {
+	if err := SyncToKloudPX(erpItem, db); err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"status":  false,
@@ -171,7 +170,7 @@ func UpdateERPMappingHandler(c *gin.Context, db *gorm.DB) {
 		"data":    erpItem,
 	})
 }
-func SyncToKloudPX(erp models.ERPSyncMedicine) error {
+func SyncToKloudPX(erp models.ERPSyncMedicine, db *gorm.DB) error {
 
 	cfg, _ := cfg.Env()
 
@@ -210,15 +209,68 @@ func SyncToKloudPX(erp models.ERPSyncMedicine) error {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
+		erp.SyncStatus = "failed"
+		db.Save(erp)
 		return err
 	}
 	defer resp.Body.Close()
-	// 🔥 ADD THIS
-	body, _ := io.ReadAll(resp.Body)
-	fmt.Println("KLOUDPX RESPONSE:", string(body))
+
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to sync to KloudPX")
+		erp.SyncStatus = "failed"
+		db.Save(erp)
+		return fmt.Errorf("sync failed")
 	}
 
+	now := time.Now()
+	erp.SyncStatus = "success"
+	erp.LastSyncedAt = &now
+	db.Save(erp)
+
 	return nil
+}
+
+func RecoverySyncHandler(c *gin.Context, db *gorm.DB) {
+
+	var items []models.ERPSyncMedicine
+
+	// Get all mapped medicines
+	err := db.Where("is_mapped = ?", true).
+		Find(&items).Error
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status": false,
+			"error":  "Failed to fetch items",
+		})
+		return
+	}
+
+	if len(items) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"status":  true,
+			"message": "No mapped items found",
+		})
+		return
+	}
+
+	successCount := 0
+	failedCount := 0
+
+	for _, item := range items {
+
+		err := SyncToKloudPX(item, db)
+		if err != nil {
+			failedCount++
+		} else {
+			successCount++
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":        true,
+		"total_items":   len(items),
+		"success_count": successCount,
+		"failed_count":  failedCount,
+		"message":       "Recovery sync completed",
+	})
 }
