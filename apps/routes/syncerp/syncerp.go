@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/innovativecursor/ixense_kloud_sync_service/apps/pkg/deduct"
 	"github.com/innovativecursor/ixense_kloud_sync_service/apps/pkg/maperpandkp"
 	"github.com/innovativecursor/ixense_kloud_sync_service/apps/pkg/middleware"
 	"github.com/innovativecursor/ixense_kloud_sync_service/apps/pkg/syncbyerp"
@@ -56,6 +57,10 @@ func SyncERP(db *gorm.DB) {
 	})
 	apiV1.POST("erp/webhook/stock", middleware.InternalAuthMiddleware(), func(c *gin.Context) {
 		syncbyerp.ERPStockWebhookHandler(c, db)
+	})
+
+	apiV1.POST("sync/deduct-stock", middleware.InternalAuthMiddleware(), func(c *gin.Context) {
+		deduct.DeductStockHandler(c, db)
 	})
 	// Listen and serve on defined port
 	log.Printf("Application started, Listening on Port %s", port)
