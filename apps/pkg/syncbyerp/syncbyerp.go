@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -59,7 +60,7 @@ func SyncERPProducts(db *gorm.DB) error {
 		for _, product := range erpResponse.Products {
 
 			normalizedStock := product.Stock
-			if product.UnitOfMeasurement == "per box" && product.NumberOfPiecesPerBox > 0 {
+			if strings.ToLower(product.UnitOfMeasurement) == "boxes" && product.NumberOfPiecesPerBox > 0 {
 				normalizedStock = product.Stock * product.NumberOfPiecesPerBox
 			}
 
@@ -86,7 +87,7 @@ func SyncERPProducts(db *gorm.DB) error {
 					Distributor:          product.Distributor,
 					OriginCountry:        product.OriginCountry,
 					ERPUnit:              product.UnitOfMeasurement,
-					UnitOfMeasurement:    product.UnitOfMeasurement,
+					UnitOfMeasurement:    "per piece",
 					Stock:                normalizedStock,
 					NumberOfPiecesPerBox: product.NumberOfPiecesPerBox,
 					SellingPricePerPiece: product.SellingPricePerPiece,
