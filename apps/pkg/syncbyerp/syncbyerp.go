@@ -55,8 +55,13 @@ func SyncERPProducts(db *gorm.DB) error {
 			return fmt.Errorf("ERP API returned false status")
 		}
 
-		// 🔥 Sync Products
+		//  Sync Products
 		for _, product := range erpResponse.Products {
+
+			normalizedStock := product.Stock
+			if product.UnitOfMeasurement == "per box" && product.NumberOfPiecesPerBox > 0 {
+				normalizedStock = product.Stock * product.NumberOfPiecesPerBox
+			}
 
 			var existing models.ERPSyncMedicine
 
@@ -80,8 +85,9 @@ func SyncERPProducts(db *gorm.DB) error {
 					Manufacturer:         product.Manufacturer,
 					Distributor:          product.Distributor,
 					OriginCountry:        product.OriginCountry,
+					ERPUnit:              product.UnitOfMeasurement,
 					UnitOfMeasurement:    product.UnitOfMeasurement,
-					Stock:                product.Stock,
+					Stock:                normalizedStock,
 					NumberOfPiecesPerBox: product.NumberOfPiecesPerBox,
 					SellingPricePerPiece: product.SellingPricePerPiece,
 					CostPricePerBox:      product.CostPricePerBox,
@@ -102,7 +108,8 @@ func SyncERPProducts(db *gorm.DB) error {
 
 				db.Model(&existing).Updates(models.ERPSyncMedicine{
 					ERPProductID:         product.ID,
-					Stock:                product.Stock,
+					Stock:                normalizedStock,
+					ERPUnit:              product.UnitOfMeasurement,
 					SellingPricePerPiece: product.SellingPricePerPiece,
 					CostPricePerBox:      product.CostPricePerBox,
 					Discount:             product.Discount,
