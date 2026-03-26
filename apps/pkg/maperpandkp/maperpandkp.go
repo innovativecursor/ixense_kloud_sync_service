@@ -190,7 +190,7 @@ func SyncToKloudPX(erp models.ERPSyncMedicine, db *gorm.DB) error {
 		"dosage_form":              erp.DosageForm,
 		"packaging":                erp.Packaging,
 		"description":              erp.Description,
-		"unit_of_measurement":      erp.UnitOfMeasurement,
+		"unit_of_measurement":      "per piece",
 		"number_of_pieces_per_box": erp.NumberOfPiecesPerBox,
 		"selling_price_per_piece":  erp.SellingPricePerPiece,
 		"cost_price_per_box":       erp.CostPricePerBox,

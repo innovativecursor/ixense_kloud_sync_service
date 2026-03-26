@@ -25,6 +25,7 @@ type ERPSyncMedicine struct {
 	OriginCountry        string
 	UnitOfMeasurement    string
 	Stock                int
+	ERPUnit              string
 	NumberOfPiecesPerBox int
 	SellingPricePerPiece float64
 	CostPricePerBox      float64
