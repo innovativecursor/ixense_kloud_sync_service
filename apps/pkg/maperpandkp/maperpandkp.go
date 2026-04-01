@@ -37,14 +37,38 @@ func generateSyncCode() string {
 
 // 	var erpItem models.ERPSyncMedicine
 
+// 	//  Check ERP item exists
 // 	if err := tx.Where("item_code = ?", payload.ERPItemCode).
 // 		First(&erpItem).Error; err != nil {
 
 // 		tx.Rollback()
-
 // 		c.JSON(http.StatusNotFound, gin.H{
 // 			"status":  false,
 // 			"message": "ERP item not found",
+// 		})
+// 		return
+// 	}
+
+// 	//  RULE 1: Check if this ERP item already mapped
+// 	if erpItem.IsMapped {
+// 		tx.Rollback()
+// 		c.JSON(http.StatusBadRequest, gin.H{
+// 			"status":  false,
+// 			"message": "This ERP item is already mapped",
+// 		})
+// 		return
+// 	}
+
+// 	// RULE 2: Check if KloudPX item already used by another ERP item
+// 	var existingMapping models.ERPSyncMedicine
+// 	err := tx.Where("kloudpx_item_code = ?", payload.KloudpxItemCode).
+// 		First(&existingMapping).Error
+
+// 	if err == nil {
+// 		tx.Rollback()
+// 		c.JSON(http.StatusBadRequest, gin.H{
+// 			"status":  false,
+// 			"message": "This KloudPX item code is already mapped to another ERP item",
 // 		})
 // 		return
 // 	}
@@ -55,10 +79,9 @@ func generateSyncCode() string {
 // 	erpItem.KloudpxItemCode = &klCode
 // 	erpItem.SyncID = &syncCode
 // 	erpItem.IsMapped = true
-// 	// Save mapping
+
 // 	if err := tx.Save(&erpItem).Error; err != nil {
 // 		tx.Rollback()
-
 // 		c.JSON(http.StatusInternalServerError, gin.H{
 // 			"status": false,
 // 			"error":  "Failed to save mapping",
@@ -66,9 +89,8 @@ func generateSyncCode() string {
 // 		return
 // 	}
 
-// 	if err := SyncToKloudPX(erpItem); err != nil {
+// 	if err := SyncToKloudPX(erpItem, db); err != nil {
 // 		tx.Rollback()
-
 // 		c.JSON(http.StatusInternalServerError, gin.H{
 // 			"status":  false,
 // 			"message": "Sync failed, mapping reverted",
@@ -79,13 +101,12 @@ func generateSyncCode() string {
 
 // 	tx.Commit()
 
-// 	c.JSON(http.StatusOK, gin.H{
-// 		"status":  true,
-// 		"message": "Mapping and sync successful",
-// 		"data":    erpItem,
-// 	})
-// }
-
+//		c.JSON(http.StatusOK, gin.H{
+//			"status":  true,
+//			"message": "Mapping and sync successful",
+//			"data":    erpItem,
+//		})
+//	}
 func UpdateERPMappingHandler(c *gin.Context, db *gorm.DB) {
 
 	var payload config.UpdateMappingRequest
@@ -97,11 +118,10 @@ func UpdateERPMappingHandler(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
-	tx := db.Begin()
-
 	var erpItem models.ERPSyncMedicine
 
-	//  Check ERP item exists
+	tx := db.Begin()
+
 	if err := tx.Where("item_code = ?", payload.ERPItemCode).
 		First(&erpItem).Error; err != nil {
 
@@ -113,37 +133,41 @@ func UpdateERPMappingHandler(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
-	//  RULE 1: Check if this ERP item already mapped
 	if erpItem.IsMapped {
 		tx.Rollback()
 		c.JSON(http.StatusBadRequest, gin.H{
 			"status":  false,
-			"message": "This ERP item is already mapped",
+			"message": "Already mapped",
 		})
 		return
 	}
 
-	// RULE 2: Check if KloudPX item already used by another ERP item
-	var existingMapping models.ERPSyncMedicine
-	err := tx.Where("kloudpx_item_code = ?", payload.KloudpxItemCode).
-		First(&existingMapping).Error
+	// check duplicate only if provided
+	if payload.KloudpxItemCode != "" {
+		var existing models.ERPSyncMedicine
+		if err := tx.Where("kloudpx_item_code = ?", payload.KloudpxItemCode).
+			First(&existing).Error; err == nil {
 
-	if err == nil {
-		tx.Rollback()
-		c.JSON(http.StatusBadRequest, gin.H{
-			"status":  false,
-			"message": "This KloudPX item code is already mapped to another ERP item",
-		})
-		return
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status":  false,
+				"message": "KP code already used",
+			})
+			return
+		}
 	}
 
-	klCode := payload.KloudpxItemCode
+	// assign
+	if payload.KloudpxItemCode != "" {
+		erpItem.KloudpxItemCode = &payload.KloudpxItemCode
+	}
+
 	syncCode := generateSyncCode()
-
-	erpItem.KloudpxItemCode = &klCode
 	erpItem.SyncID = &syncCode
 	erpItem.IsMapped = true
+	erpItem.SyncStatus = "pending"
 
+	// save mapping
 	if err := tx.Save(&erpItem).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -153,17 +177,21 @@ func UpdateERPMappingHandler(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
+	// ✅ VERY IMPORTANT
+	tx.Commit()
+
+	// ✅ CALL API AFTER COMMIT
 	if err := SyncToKloudPX(erpItem, db); err != nil {
-		tx.Rollback()
+
+		db.Model(&erpItem).Update("sync_status", "failed")
+
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"status":  false,
-			"message": "Sync failed, mapping reverted",
+			"message": "Mapping saved but sync failed",
 			"error":   err.Error(),
 		})
 		return
 	}
-
-	tx.Commit()
 
 	c.JSON(http.StatusOK, gin.H{
 		"status":  true,
