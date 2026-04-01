@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
 	"net/http"
 	"time"
@@ -172,14 +173,19 @@ func UpdateERPMappingHandler(c *gin.Context, db *gorm.DB) {
 }
 func SyncToKloudPX(erp models.ERPSyncMedicine, db *gorm.DB) error {
 
-	cfg, _ := cfg.Env()
+	cfgData, err := cfg.Env()
+	if err != nil {
+		return err
+	}
 
-	url := fmt.Sprintf("%s/internal/sync-medicine", cfg.KloudPX.BaseURL)
+	url := fmt.Sprintf("%s/internal/sync-medicine", cfgData.KloudPX.BaseURL)
 
+	// Handle nullable pointer
 	var klCode string
 	if erp.KloudpxItemCode != nil {
 		klCode = *erp.KloudpxItemCode
 	}
+
 	payload := map[string]interface{}{
 		"erp_item_code":            erp.ItemCode,
 		"kloudpx_item_code":        klCode,
@@ -200,35 +206,61 @@ func SyncToKloudPX(erp models.ERPSyncMedicine, db *gorm.DB) error {
 		"stock":                    erp.Stock,
 	}
 
-	jsonData, _ := json.Marshal(payload)
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
 
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-INTERNAL-KEY", cfg.KloudPX.ServiceKey)
+	req.Header.Set("X-INTERNAL-KEY", cfgData.KloudPX.ServiceKey)
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 10 * time.Second}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		erp.SyncStatus = "failed"
-		db.Save(erp)
+		db.Save(&erp)
 		return err
 	}
 	defer resp.Body.Close()
 
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		erp.SyncStatus = "failed"
+		db.Save(&erp)
+		return err
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		erp.SyncStatus = "failed"
-		db.Save(erp)
-		return fmt.Errorf("sync failed")
+		db.Save(&erp)
+		return fmt.Errorf("sync failed: %s", string(body))
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err == nil {
+
+		if code, ok := result["kloudpx_item_code"].(string); ok && code != "" {
+
+			erp.KloudpxItemCode = &code
+		}
 	}
 
 	now := time.Now()
 	erp.SyncStatus = "success"
 	erp.LastSyncedAt = &now
-	db.Save(erp)
+
+	if err := db.Save(&erp).Error; err != nil {
+		return err
+	}
 
 	return nil
 }
-
 func RecoverySyncHandler(c *gin.Context, db *gorm.DB) {
 
 	var items []models.ERPSyncMedicine
