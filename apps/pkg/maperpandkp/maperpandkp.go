@@ -219,7 +219,7 @@ func SyncToKloudPX(erp models.ERPSyncMedicine, db *gorm.DB) error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-INTERNAL-KEY", cfgData.KloudPX.ServiceKey)
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{}
 
 	resp, err := client.Do(req)
 	if err != nil {
