@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -332,5 +333,66 @@ func RecoverySyncHandler(c *gin.Context, db *gorm.DB) {
 		"success_count": successCount,
 		"failed_count":  failedCount,
 		"message":       "Recovery sync completed",
+	})
+}
+
+func GetAllUnMappedItem(c *gin.Context, db *gorm.DB) {
+
+	var items []models.ERPSyncMedicine
+	var total int64
+
+	// Query param (only page)
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	limit := 10 //
+	offset := (page - 1) * limit
+
+	search := c.Query("search")
+
+	// Base query
+	query := db.Model(&models.ERPSyncMedicine{}).
+		Where("is_mapped = ?", false)
+
+	// Search filter (optional)
+	if search != "" {
+		query = query.Where(
+			"brand_name LIKE ? OR item_code LIKE ?",
+			"%"+search+"%",
+			"%"+search+"%",
+		)
+	}
+
+	// Total count
+	if err := query.Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status": false,
+			"error":  "Failed to count items",
+		})
+		return
+	}
+
+	// Fetch data
+	if err := query.
+		Order("created_at DESC").
+		Offset(offset).
+		Limit(limit).
+		Find(&items).Error; err != nil {
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status": false,
+			"error":  "Failed to fetch unmapped items",
+		})
+		return
+	}
+
+	// Response
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Unmapped items fetched successfully",
+		"page":    page,
+		"total":   total,
+		"data":    items,
 	})
 }
