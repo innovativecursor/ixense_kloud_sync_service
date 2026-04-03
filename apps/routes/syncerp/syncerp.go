@@ -62,6 +62,10 @@ func SyncERP(db *gorm.DB) {
 	apiV1.POST("sync/deduct-stock", middleware.InternalAuthMiddleware(), func(c *gin.Context) {
 		deduct.DeductStockHandler(c, db)
 	})
+
+	apiV1.GET("sync/get-all-unmappeditems", middleware.InternalAuthMiddleware(), func(c *gin.Context) {
+		maperpandkp.GetAllUnMappedItem(c, db)
+	})
 	// Listen and serve on defined port
 	log.Printf("Application started, Listening on Port %s", port)
 	router.Run(":" + port)
