@@ -393,6 +393,7 @@ func GetAllUnMappedItem(c *gin.Context, db *gorm.DB) {
 		"message": "Unmapped items fetched successfully",
 		"page":    page,
 		"total":   total,
+		"limit":   limit,
 		"data":    items,
 	})
 }
