@@ -32,7 +32,7 @@ func SyncERP(db *gorm.DB) {
 		syncbyerp.SyncERPHandler(c, db)
 	})
 
-	apiV1.GET("sync/get-all-data", func(c *gin.Context) {
+	apiV1.GET("sync/get-all-data", middleware.InternalAuthMiddleware(), func(c *gin.Context) {
 		syncbyerp.GetAllERPSyncMedicinesHandler(c, db)
 	})
 
