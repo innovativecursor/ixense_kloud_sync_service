@@ -33,6 +33,8 @@ type Config struct {
 	Internal struct {
 		ServiceKey string `yaml:"serviceKey"`
 	} `yaml:"internal"`
+	// Endpoint string `yaml:"endpoint"`
+	Endpoints []string `mapstructure:"endpoints"`
 }
 
 func Env() (Config, error) {
