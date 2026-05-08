@@ -152,12 +152,26 @@ func SyncERPHandler(c *gin.Context, db *gorm.DB) {
 	})
 }
 
+type ItemCodeData struct {
+	ItemCode    string `json:"item_code"`
+	GenericName string `json:"generic_name"`
+	BrandName   string `json:"brand_name"`
+	Power       string `json:"power"`
+}
+type GetItemCodesResponse struct {
+	Status    bool           `json:"status"`
+	Total     int            `json:"total"`
+	ItemCodes []ItemCodeData `json:"item_codes"`
+}
+
 func GetAllItemCodesHandler(c *gin.Context, db *gorm.DB) {
 
-	var itemCodes []string
+	var itemCodes []ItemCodeData
 
 	err := db.Model(&models.ERPSyncMedicine{}).
-		Pluck("item_code", &itemCodes).Error
+		Select("item_code, generic_name, brand_name, power").
+		Scan(&itemCodes).Error
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"status":  false,
@@ -173,7 +187,6 @@ func GetAllItemCodesHandler(c *gin.Context, db *gorm.DB) {
 		"item_codes": itemCodes,
 	})
 }
-
 func GetAllERPSyncMedicinesHandler(c *gin.Context, db *gorm.DB) {
 
 	var medicines []models.ERPSyncMedicine

@@ -233,6 +233,7 @@ func SyncToKloudPX(erp models.ERPSyncMedicine, db *gorm.DB) error {
 		"prescription":             erp.Prescription,
 		"manufacturer":             erp.Manufacturer,
 		"stock":                    erp.Stock,
+		"image":                    erp.Image,
 	}
 
 	jsonData, err := json.Marshal(payload)
